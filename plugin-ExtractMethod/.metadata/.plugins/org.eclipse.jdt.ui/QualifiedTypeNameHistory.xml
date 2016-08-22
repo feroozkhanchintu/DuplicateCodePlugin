@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.JavaCore"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.internal.core.jdom.CompilationUnit"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.ASTNode"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.CompilationUnit"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.AST"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.internal.corext.refactoring.util.TextEditUtil"/>
+<fullyQualifiedTypeName name="org.eclipse.jface.text.IRegion"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.SourceRange"/>
+<fullyQualifiedTypeName name="org.eclipse.jface.text.Document"/>
+<fullyQualifiedTypeName name="org.eclipse.jface.text.BadLocationException"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.IPackageFragment"/>
+<fullyQualifiedTypeName name="eclipse.commandline.Application"/>
+<fullyQualifiedTypeName name="java.io.FileNotFoundException"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.IJavaProject"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.dom.ASTParser"/>
+<fullyQualifiedTypeName name="org.eclipse.core.resources.IResourceDeltaVisitor"/>
+<fullyQualifiedTypeName name="org.eclipse.core.resources.mapping.ModelProvider"/>
+<fullyQualifiedTypeName name="java.util.Comparator"/>
+<fullyQualifiedTypeName name="org.eclipse.core.resources.IResourceDelta"/>
+<fullyQualifiedTypeName name="org.eclipse.core.runtime.IStatus"/>
+<fullyQualifiedTypeName name="org.eclipse.core.runtime.IProgressMonitor"/>
+<fullyQualifiedTypeName name="org.eclipse.core.runtime.Assert"/>
+<fullyQualifiedTypeName name="java.util.Arrays"/>
+<fullyQualifiedTypeName name="org.eclipse.core.resources.IResource"/>
+<fullyQualifiedTypeName name="org.eclipse.core.runtime.IPath"/>
+<fullyQualifiedTypeName name="java.util.ArrayList"/>
+<fullyQualifiedTypeName name="com.sun.xml.internal.bind.v2.schemagen.xmlschema.List"/>
+<fullyQualifiedTypeName name="eclipse.commandline.TestModelProvider"/>
+<fullyQualifiedTypeName name="java.lang.reflect.Modifier"/>
+<fullyQualifiedTypeName name="java.util.List"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.internal.corext.refactoring.ParameterInfo"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.ISourceRange"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange"/>
+<fullyQualifiedTypeName name="java.io.InputStream"/>
+<fullyQualifiedTypeName name="java.io.BufferedReader"/>
+<fullyQualifiedTypeName name="java.io.InputStreamReader"/>
+<fullyQualifiedTypeName name="org.omg.PortableInterceptor.AdapterNameHelper"/>
+<fullyQualifiedTypeName name="org.eclipse.ltk.core.refactoring.Change"/>
+<fullyQualifiedTypeName name="org.eclipse.core.runtime.NullProgressMonitor"/>
+<fullyQualifiedTypeName name="org.eclipse.core.resources.IProject"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.ICompilationUnit"/>
+<fullyQualifiedTypeName name="org.eclipse.jdt.core.IPackageFragmentRoot"/>
+<fullyQualifiedTypeName name="org.eclipse.jface.text.IDocument"/>
+</qualifiedTypeNameHistroy>

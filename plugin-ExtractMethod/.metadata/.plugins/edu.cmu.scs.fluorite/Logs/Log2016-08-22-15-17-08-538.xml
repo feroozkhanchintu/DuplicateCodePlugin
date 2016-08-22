@@ -1,0 +1,838 @@
+<Events startTimestamp="1471859228538" logVersion="0.11.0.201608161147" osName="Windows Server 2012 R2" osVersion="6.3" lineSeparator="\r\n" numMonitors="1" monitorBounds="[0, 0, 1280, 800]">
+  <Command __id="0" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="7" />
+  <Command __id="1" _type="FileOpenCommand" docASTNodeCount="939" docActiveCodeLength="5239" docExpressionCount="694" docLength="5362" projectName="plugin-ExtractMethod" timestamp="32">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+    <snapshot><![CDATA[package eclipse.commandline;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Modifier;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.equinox.app.IApplication;
+import org.eclipse.equinox.app.IApplicationContext;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.SourceRange;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.internal.corext.refactoring.ParameterInfo;
+import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
+import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
+import org.eclipse.jdt.internal.corext.refactoring.util.TextEditUtil;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
+import org.eclipse.ltk.core.refactoring.Change;
+
+
+
+
+@SuppressWarnings("restriction")
+public class Application implements IApplication {
+	
+	public static final String CONTAINER= "src";
+	private static IPackageFragmentRoot fgRoot;
+	private static IPackageFragment fgPackageP;
+	private static IJavaProject fgJavaTestProject;
+	private static IPackageFragmentRoot fgJRELibrary;
+	private IPackageFragment fSelectionPackage;
+
+
+	static String readFile(String path, Charset encoding) 
+			  throws IOException 
+			{
+			  byte[] encoded = Files.readAllBytes(Paths.get(path));
+			  return new String(encoded, encoding);
+			}
+	public ISourceRange getSelection(ICompilationUnit cu, int startLine, int startColumn, int endLine, int endColumn) throws Exception{
+		IDocument document= new Document(cu.getSource());
+		int offset= getOffset(document, startLine, startColumn);
+		int end= getOffset(document, endLine, endColumn);
+		return new SourceRange(offset, end - offset);
+	}
+	
+	private static int getOffset(IDocument document, int line, int column) throws BadLocationException {
+		int r= document.getLineInformation(line - 1).getOffset();
+		IRegion region= document.getLineInformation(line - 1);
+		int lineTabCount= calculateTabCountInLine(document.get(region.getOffset(), region.getLength()), column);
+		r += (column - 1) - (lineTabCount * getTabWidth()) + lineTabCount;
+		return r;
+	}
+	
+	private static final int getTabWidth(){
+		return 4;
+	}
+	
+	public static int calculateTabCountInLine(String lineSource, int lastCharOffset){
+		int acc= 0;
+		int charCount= 0;
+		for(int i= 0; charCount < lastCharOffset - 1; i++){
+			if ('\t' == lineSource.charAt(i)){
+				acc++;
+				charCount += getTabWidth();
+			}	else
+				charCount += 1;
+		}
+		return acc;
+	}
+	
+	public static IPackageFragmentRoot getDefaultSourceFolder() throws Exception {
+		if (fgRoot != null)
+			return fgRoot;
+		throw new FileNotFoundException();
+	}
+	
+	
+	@Override
+	public Object start(IApplicationContext arg0) throws Exception {
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+		System.out.println(workspace);
+		IWorkspaceRoot root = workspace.getRoot();
+		IProject[] projects = root.getProjects();
+		IPackageFragment[] packages = JavaCore.create(projects[0]).getPackageFragments();
+		System.out.println(packages[0]);
+		ICompilationUnit[] units = packages[0].getCompilationUnits();
+		ASTParser astParser = ASTParser.newParser(8);
+		astParser.setSource(units[0]);
+		astParser.setResolveBindings(true);
+		ASTNode result = astParser.createAST((IProgressMonitor) null);
+		CompilationUnit astRoot = (CompilationUnit) result;
+		System.out.println(units[0]);
+		ISourceRange sourceRange = getSelection(units[0], 271, 1, 275, 1);
+	
+		ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(astRoot, sourceRange.getOffset(), sourceRange.getLength());
+
+		refactoring.setMethodName("extracted");
+		refactoring.setVisibility(Modifier.PRIVATE);
+		
+		refactoring.checkInitialConditions(new NullProgressMonitor());
+		//refactoring.setDestination(0);
+		//List parameters= refactoring.getParameterInfos();
+		//System.out.println(parameters.size());
+		refactoring.checkFinalConditions(new NullProgressMonitor());
+		Change change = refactoring.createChange(new NullProgressMonitor());
+		change.perform(new NullProgressMonitor());
+		change.dispose();
+		System.out.println(change.getModifiedElement().toString());
+		workspace.save(true, null);
+		return IApplication.EXIT_OK;		
+	}
+	
+	 
+	
+	@Override
+	public void stop() {
+
+	}
+
+}
+]]></snapshot>
+  </Command>
+  <Command __id="2" _type="MoveCaretCommand" caretOffset="795" docOffset="2563" timestamp="421" />
+  <Command __id="3" _type="MoveCaretCommand" caretOffset="2755" docOffset="4523" timestamp="12715" />
+  <DocumentChange __id="4" _type="Delete" docASTNodeCount="938" docActiveCodeLength="5236" docExpressionCount="693" docLength="5359" endLine="118" length="3" offset="4521" repeat="3" startLine="118" timestamp="13146" timestamp2="14137">
+    <text><![CDATA[271]]></text>
+  </DocumentChange>
+  <Command __id="6" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="13198" />
+  <Command __id="5" _type="EclipseCommand" commandID="keyDownEvent" timestamp="13198">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11473343 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="9" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="13309" />
+  <Command __id="8" _type="EclipseCommand" commandID="keyDownEvent" timestamp="13309">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11473500 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="11" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="13741" />
+  <Command __id="10" _type="EclipseCommand" commandID="keyDownEvent" timestamp="13741">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11473953 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="14" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="14144" />
+  <Command __id="13" _type="EclipseCommand" commandID="keyDownEvent" timestamp="14144">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11474328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="15" _type="Insert" docASTNodeCount="939" docActiveCodeLength="5237" docExpressionCount="694" docLength="5360" length="1" offset="4521" timestamp="14681">
+    <text><![CDATA[4]]></text>
+  </DocumentChange>
+  <Command __id="17" _type="InsertStringCommand" timestamp="14689">
+    <data><![CDATA[4]]></data>
+  </Command>
+  <Command __id="16" _type="EclipseCommand" commandID="keyDownEvent" timestamp="14689">
+    <KeyCode><![CDATA[52]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11474890 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="19" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="14745" />
+  <Command __id="18" _type="EclipseCommand" commandID="keyDownEvent" timestamp="14745">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11474953 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="21" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="14936" />
+  <Command __id="20" _type="EclipseCommand" commandID="keyDownEvent" timestamp="14936">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11475156 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="23" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="15085" />
+  <Command __id="22" _type="EclipseCommand" commandID="keyDownEvent" timestamp="15085">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11475296 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="24" _type="Delete" docASTNodeCount="938" docActiveCodeLength="5236" docExpressionCount="693" docLength="5359" endLine="118" length="1" offset="4524" startLine="118" timestamp="15805">
+    <text><![CDATA[1]]></text>
+  </DocumentChange>
+  <Command __id="26" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="15811" />
+  <Command __id="25" _type="EclipseCommand" commandID="keyDownEvent" timestamp="15812">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11476015 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="27" _type="Insert" docASTNodeCount="939" docActiveCodeLength="5237" docExpressionCount="694" docLength="5360" length="1" offset="4524" timestamp="16158">
+    <text><![CDATA[9]]></text>
+  </DocumentChange>
+  <Command __id="29" _type="InsertStringCommand" timestamp="16164">
+    <data><![CDATA[9]]></data>
+  </Command>
+  <Command __id="28" _type="EclipseCommand" commandID="keyDownEvent" timestamp="16164">
+    <KeyCode><![CDATA[57]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11476375 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="31" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="16495" />
+  <Command __id="30" _type="EclipseCommand" commandID="keyDownEvent" timestamp="16495">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11476703 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="33" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="16728" />
+  <Command __id="32" _type="EclipseCommand" commandID="keyDownEvent" timestamp="16728">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11476937 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="35" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="16886" />
+  <Command __id="34" _type="EclipseCommand" commandID="keyDownEvent" timestamp="16886">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11477093 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="37" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="17060" />
+  <Command __id="36" _type="EclipseCommand" commandID="keyDownEvent" timestamp="17060">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11477281 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="39" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="17475" />
+  <Command __id="38" _type="EclipseCommand" commandID="keyDownEvent" timestamp="17475">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11477687 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="40" _type="Delete" docASTNodeCount="938" docActiveCodeLength="5234" docExpressionCount="693" docLength="5357" endLine="118" length="3" offset="4527" repeat="3" startLine="118" timestamp="17901" timestamp2="18188">
+    <text><![CDATA[275]]></text>
+  </DocumentChange>
+  <Command __id="42" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="17910" />
+  <Command __id="41" _type="EclipseCommand" commandID="keyDownEvent" timestamp="17911">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11478109 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="45" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="18056" />
+  <Command __id="44" _type="EclipseCommand" commandID="keyDownEvent" timestamp="18056">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11478250 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="48" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="18192" />
+  <Command __id="47" _type="EclipseCommand" commandID="keyDownEvent" timestamp="18192">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11478390 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="49" _type="Insert" docASTNodeCount="939" docActiveCodeLength="5235" docExpressionCount="694" docLength="5358" length="1" offset="4527" timestamp="19053">
+    <text><![CDATA[4]]></text>
+  </DocumentChange>
+  <Command __id="51" _type="InsertStringCommand" timestamp="19061">
+    <data><![CDATA[4]]></data>
+  </Command>
+  <Command __id="50" _type="EclipseCommand" commandID="keyDownEvent" timestamp="19061">
+    <KeyCode><![CDATA[52]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11479265 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="53" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="19115" />
+  <Command __id="52" _type="EclipseCommand" commandID="keyDownEvent" timestamp="19115">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11479328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="55" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.COLUMN_NEXT" timestamp="19300" />
+  <Command __id="54" _type="EclipseCommand" commandID="keyDownEvent" timestamp="19300">
+    <KeyCode><![CDATA[16777220]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11479515 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <DocumentChange __id="56" _type="Insert" docASTNodeCount="939" docActiveCodeLength="5236" docExpressionCount="694" docLength="5359" length="1" offset="4530" timestamp="20338">
+    <text><![CDATA[3]]></text>
+  </DocumentChange>
+  <Command __id="58" _type="InsertStringCommand" timestamp="20345">
+    <data><![CDATA[3]]></data>
+  </Command>
+  <Command __id="57" _type="EclipseCommand" commandID="keyDownEvent" repeat="2" timestamp="20346" timestamp2="21025">
+    <KeyCode><![CDATA[51]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11480546 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="60" _type="EclipseCommand" commandID="org.eclipse.ui.file.save" timestamp="21542" />
+  <Command __id="61" _type="RunCommand" kind="Create" projectName="null" timestamp="24290" type="Run" />
+  <Command __id="62" _type="RunCommand" exitValue="0" kind="Terminate" projectName="null" timestamp="29111" type="Run" />
+  <Command __id="63" _type="MoveCaretCommand" caretOffset="2604" docOffset="4372" timestamp="101931" />
+  <Command __id="65" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_UP" timestamp="103960" />
+  <Command __id="64" _type="EclipseCommand" commandID="keyDownEvent" timestamp="103960">
+    <KeyCode><![CDATA[16777217]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11564171 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="67" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_UP" timestamp="104135" />
+  <Command __id="66" _type="EclipseCommand" commandID="keyDownEvent" timestamp="104135">
+    <KeyCode><![CDATA[16777217]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11564343 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="69" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_UP" timestamp="105522" />
+  <Command __id="68" _type="EclipseCommand" commandID="keyDownEvent" timestamp="105522">
+    <KeyCode><![CDATA[16777217]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11565734 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="71" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_UP" timestamp="105727" />
+  <Command __id="70" _type="EclipseCommand" commandID="keyDownEvent" timestamp="105727">
+    <KeyCode><![CDATA[16777217]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11565937 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="73" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_UP" timestamp="106752" />
+  <Command __id="72" _type="EclipseCommand" commandID="keyDownEvent" timestamp="106752">
+    <KeyCode><![CDATA[16777217]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11566968 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="74" _type="MoveCaretCommand" caretOffset="2679" docOffset="4447" timestamp="114805" />
+  <Command __id="75" _type="SelectTextCommand" caretOffset="2680" docEnd="4448" docOffset="4448" docStart="4445" end="2680" start="2677" timestamp="114960" />
+  <Command __id="76" _type="SelectTextCommand" caretOffset="2701" docEnd="4469" docOffset="4469" docStart="4436" end="2701" start="2668" timestamp="115100" />
+  <DocumentChange __id="77" _type="Delete" docASTNodeCount="930" docActiveCodeLength="5203" docExpressionCount="686" docLength="5326" endLine="118" length="33" offset="4436" startLine="117" timestamp="115500">
+    <text><![CDATA[		System.out.println(units[0]);
+]]></text>
+  </DocumentChange>
+  <Command __id="79" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="115510" />
+  <Command __id="78" _type="EclipseCommand" commandID="keyDownEvent" timestamp="115510">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11575703 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="80" _type="MoveCaretCommand" caretOffset="2399" docOffset="4167" timestamp="118378" />
+  <Command __id="81" _type="MoveCaretCommand" caretOffset="2358" docOffset="4126" timestamp="119816" />
+  <Command __id="82" _type="EclipseCommand" commandID="keyDownEvent" timestamp="130550">
+    <KeyCode><![CDATA[262144]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11590765 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="83" _type="SelectTextCommand" caretOffset="2268" docEnd="4036" docOffset="4036" docStart="4028" end="2268" start="2260" timestamp="130963" />
+  <Command __id="84" _type="MoveCaretCommand" caretOffset="2249" docOffset="4017" timestamp="132718" />
+  <Command __id="85" _type="EclipseCommand" commandID="keyDownEvent" timestamp="133205">
+    <KeyCode><![CDATA[262144]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11593421 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="86" _type="FileOpenCommand" projectName="null" timestamp="133591">
+    <filePath><![CDATA[null]]></filePath>
+  </Command>
+  <Command __id="87" _type="SelectTextCommand" caretOffset="226" docEnd="226" docOffset="226" docStart="210" end="226" start="210" timestamp="133716" />
+  <Command __id="88" _type="FileOpenCommand" docASTNodeCount="930" docActiveCodeLength="5203" docExpressionCount="686" docLength="5326" projectName="plugin-ExtractMethod" timestamp="139617">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+  </Command>
+  <Command __id="89" _type="MoveCaretCommand" caretOffset="2249" docOffset="4017" timestamp="139731" />
+  <Command __id="90" _type="MoveCaretCommand" caretOffset="2358" docOffset="4126" timestamp="162153" />
+  <Command __id="92" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="168605" />
+  <Command __id="91" _type="EclipseCommand" commandID="keyDownEvent" timestamp="168605">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11628812 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="94" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169104" />
+  <Command __id="93" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169104">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629312 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="96" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169188" />
+  <Command __id="95" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169188">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629390 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="98" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169275" />
+  <Command __id="97" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169275">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629484 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="100" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169359" />
+  <Command __id="99" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169359">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629562 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="102" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169439" />
+  <Command __id="101" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169439">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629656 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="104" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169524" />
+  <Command __id="103" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169524">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629734 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="106" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169609" />
+  <Command __id="105" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169609">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629812 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="108" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169693" />
+  <Command __id="107" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169693">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629906 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="110" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169779" />
+  <Command __id="109" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169779">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11629984 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="112" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169860" />
+  <Command __id="111" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169860">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630078 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="114" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="169945" />
+  <Command __id="113" _type="EclipseCommand" commandID="keyDownEvent" timestamp="169945">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630156 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="116" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170031" />
+  <Command __id="115" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170031">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630234 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="118" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170114" />
+  <Command __id="117" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170114">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="120" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170198" />
+  <Command __id="119" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170198">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630406 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="122" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170280" />
+  <Command __id="121" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170280">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630484 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="124" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170364" />
+  <Command __id="123" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170364">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630578 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="126" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170450" />
+  <Command __id="125" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170450">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630656 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="128" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170534" />
+  <Command __id="127" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170534">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630750 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="130" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170617" />
+  <Command __id="129" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170617">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630828 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="132" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170701" />
+  <Command __id="131" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170701">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11630906 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="134" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170785" />
+  <Command __id="133" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170785">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631000 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="136" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170869" />
+  <Command __id="135" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170869">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631078 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="138" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="170953" />
+  <Command __id="137" _type="EclipseCommand" commandID="keyDownEvent" timestamp="170953">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631156 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="140" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171037" />
+  <Command __id="139" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171037">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631250 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="142" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171121" />
+  <Command __id="141" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171121">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="144" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171206" />
+  <Command __id="143" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171206">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631421 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="146" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171293" />
+  <Command __id="145" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171293">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631500 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="148" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171483" />
+  <Command __id="147" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171483">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631703 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="150" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171641" />
+  <Command __id="149" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171643">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11631859 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="152" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171799" />
+  <Command __id="151" _type="EclipseCommand" commandID="keyDownEvent" timestamp="171799">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11632015 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="154" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="171979" />
+  <Command __id="153" _type="EclipseCommand" commandID="keyDownEvent" repeat="2" timestamp="171979" timestamp2="173682">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11632187 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="157" _type="InsertStringCommand" timestamp="173988">
+    <data><![CDATA[I]]></data>
+  </Command>
+  <Command __id="156" _type="EclipseCommand" commandID="keyDownEvent" repeat="2" timestamp="173988" timestamp2="174413">
+    <KeyCode><![CDATA[105]]></KeyCode>
+    <stateMask><![CDATA[131072]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11634187 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="159" _type="EclipseCommand" commandID="keyDownEvent" timestamp="177590">
+    <KeyCode><![CDATA[131072]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11637812 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="161" _type="InsertStringCommand" timestamp="177710">
+    <data><![CDATA[P]]></data>
+  </Command>
+  <Command __id="160" _type="EclipseCommand" commandID="keyDownEvent" timestamp="177711">
+    <KeyCode><![CDATA[112]]></KeyCode>
+    <stateMask><![CDATA[131072]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11637921 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="163" _type="InsertStringCommand" timestamp="178211">
+    <data><![CDATA[a]]></data>
+  </Command>
+  <Command __id="162" _type="EclipseCommand" commandID="keyDownEvent" timestamp="178211">
+    <KeyCode><![CDATA[97]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11638421 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="165" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.LINE_DOWN" timestamp="181540" />
+  <Command __id="164" _type="EclipseCommand" commandID="keyDownEvent" timestamp="181540">
+    <KeyCode><![CDATA[16777218]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11641750 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="167" _type="InsertStringCommand" timestamp="182345">
+    <data><![CDATA[]]></data>
+  </Command>
+  <Command __id="166" _type="EclipseCommand" commandID="keyDownEvent" timestamp="182345">
+    <KeyCode><![CDATA[13]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11642546 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="169" _type="InsertStringCommand" timestamp="183128">
+    <data><![CDATA[ ]]></data>
+  </Command>
+  <Command __id="168" _type="EclipseCommand" commandID="keyDownEvent" timestamp="183128">
+    <KeyCode><![CDATA[32]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11643343 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="171" _type="InsertStringCommand" timestamp="183463">
+    <data><![CDATA[=]]></data>
+  </Command>
+  <Command __id="170" _type="EclipseCommand" commandID="keyDownEvent" timestamp="183463">
+    <KeyCode><![CDATA[61]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11643671 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="173" _type="InsertStringCommand" timestamp="183649">
+    <data><![CDATA[ ]]></data>
+  </Command>
+  <Command __id="172" _type="EclipseCommand" commandID="keyDownEvent" timestamp="183649">
+    <KeyCode><![CDATA[32]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11643859 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="175" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="184171" />
+  <Command __id="174" _type="EclipseCommand" commandID="keyDownEvent" timestamp="184171">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11644375 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="177" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="184304" />
+  <Command __id="176" _type="EclipseCommand" commandID="keyDownEvent" timestamp="184304">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11644515 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="179" _type="InsertStringCommand" timestamp="185621">
+    <data><![CDATA[r]]></data>
+  </Command>
+  <Command __id="178" _type="EclipseCommand" commandID="keyDownEvent" timestamp="185622">
+    <KeyCode><![CDATA[114]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11645828 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="181" _type="InsertStringCommand" timestamp="185719">
+    <data><![CDATA[o]]></data>
+  </Command>
+  <Command __id="180" _type="EclipseCommand" commandID="keyDownEvent" timestamp="185719">
+    <KeyCode><![CDATA[111]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11645921 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="183" _type="InsertStringCommand" timestamp="185895">
+    <data><![CDATA[o]]></data>
+  </Command>
+  <Command __id="182" _type="EclipseCommand" commandID="keyDownEvent" timestamp="185895">
+    <KeyCode><![CDATA[111]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11646109 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="185" _type="InsertStringCommand" timestamp="186004">
+    <data><![CDATA[t]]></data>
+  </Command>
+  <Command __id="184" _type="EclipseCommand" commandID="keyDownEvent" timestamp="186004">
+    <KeyCode><![CDATA[116]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11646218 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="187" _type="InsertStringCommand" timestamp="186067">
+    <data><![CDATA[ ]]></data>
+  </Command>
+  <Command __id="186" _type="EclipseCommand" commandID="keyDownEvent" timestamp="186067">
+    <KeyCode><![CDATA[32]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11646281 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="189" _type="InsertStringCommand" timestamp="186314">
+    <data><![CDATA[=]]></data>
+  </Command>
+  <Command __id="188" _type="EclipseCommand" commandID="keyDownEvent" timestamp="186315">
+    <KeyCode><![CDATA[61]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11646531 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="191" _type="InsertStringCommand" timestamp="186397">
+    <data><![CDATA[ ]]></data>
+  </Command>
+  <Command __id="190" _type="EclipseCommand" commandID="keyDownEvent" timestamp="186397">
+    <KeyCode><![CDATA[32]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11646609 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="193" _type="InsertStringCommand" timestamp="188115">
+    <data><![CDATA[p]]></data>
+  </Command>
+  <Command __id="192" _type="EclipseCommand" commandID="keyDownEvent" timestamp="188115">
+    <KeyCode><![CDATA[112]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11648328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="195" _type="InsertStringCommand" timestamp="188217">
+    <data><![CDATA[a]]></data>
+  </Command>
+  <Command __id="194" _type="EclipseCommand" commandID="keyDownEvent" timestamp="188217">
+    <KeyCode><![CDATA[97]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11648421 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="197" _type="InsertStringCommand" timestamp="189872">
+    <data><![CDATA[k]]></data>
+  </Command>
+  <Command __id="196" _type="EclipseCommand" commandID="keyDownEvent" timestamp="189872">
+    <KeyCode><![CDATA[107]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11650078 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="199" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="190640" />
+  <Command __id="198" _type="EclipseCommand" commandID="keyDownEvent" timestamp="190640">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11650859 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="201" _type="InsertStringCommand" timestamp="190901">
+    <data><![CDATA[c]]></data>
+  </Command>
+  <Command __id="200" _type="EclipseCommand" commandID="keyDownEvent" timestamp="190901">
+    <KeyCode><![CDATA[99]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651109 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="203" _type="InsertStringCommand" timestamp="190985">
+    <data><![CDATA[k]]></data>
+  </Command>
+  <Command __id="202" _type="EclipseCommand" commandID="keyDownEvent" timestamp="190985">
+    <KeyCode><![CDATA[107]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651203 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="205" _type="InsertStringCommand" timestamp="191109">
+    <data><![CDATA[a]]></data>
+  </Command>
+  <Command __id="204" _type="EclipseCommand" commandID="keyDownEvent" timestamp="191109">
+    <KeyCode><![CDATA[97]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651312 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="207" _type="InsertStringCommand" timestamp="191412">
+    <data><![CDATA[g]]></data>
+  </Command>
+  <Command __id="206" _type="EclipseCommand" commandID="keyDownEvent" timestamp="191412">
+    <KeyCode><![CDATA[103]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651625 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="209" _type="InsertStringCommand" timestamp="191493">
+    <data><![CDATA[e]]></data>
+  </Command>
+  <Command __id="208" _type="EclipseCommand" commandID="keyDownEvent" timestamp="191493">
+    <KeyCode><![CDATA[101]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651703 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="211" _type="InsertStringCommand" timestamp="191748">
+    <data><![CDATA[s]]></data>
+  </Command>
+  <Command __id="210" _type="EclipseCommand" commandID="keyDownEvent" timestamp="191748">
+    <KeyCode><![CDATA[115]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11651953 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="213" _type="InsertStringCommand" timestamp="192145">
+    <data><![CDATA[[]]></data>
+  </Command>
+  <Command __id="212" _type="EclipseCommand" commandID="keyDownEvent" timestamp="192145">
+    <KeyCode><![CDATA[91]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11652343 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="215" _type="InsertStringCommand" timestamp="192475">
+    <data><![CDATA[0]]></data>
+  </Command>
+  <Command __id="214" _type="EclipseCommand" commandID="keyDownEvent" timestamp="192475">
+    <KeyCode><![CDATA[48]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11652687 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="217" _type="InsertStringCommand" timestamp="192752">
+    <data><![CDATA[]]]></data>
+  </Command>
+  <Command __id="216" _type="EclipseCommand" commandID="keyDownEvent" timestamp="192752">
+    <KeyCode><![CDATA[93]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11652953 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="219" _type="InsertStringCommand" timestamp="193119">
+    <data><![CDATA[.]]></data>
+  </Command>
+  <Command __id="218" _type="EclipseCommand" commandID="keyDownEvent" timestamp="193119">
+    <KeyCode><![CDATA[46]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11653328 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="220" _type="MoveCaretCommand" caretOffset="2352" docOffset="4120" timestamp="201935" />
+  <Command __id="221" _type="SelectTextCommand" caretOffset="2368" docEnd="4136" docOffset="4136" docStart="4092" end="2368" start="2324" timestamp="202275" />
+  <Command __id="223" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="203014" />
+  <Command __id="222" _type="EclipseCommand" commandID="keyDownEvent" timestamp="203014">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11663218 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="224" _type="MoveCaretCommand" caretOffset="2651" docOffset="4419" timestamp="232915" />
+  <Command __id="225" _type="EclipseCommand" commandID="keyDownEvent" timestamp="234138">
+    <KeyCode><![CDATA[262144]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=11694359 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="226" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="241997" />
+</Events>

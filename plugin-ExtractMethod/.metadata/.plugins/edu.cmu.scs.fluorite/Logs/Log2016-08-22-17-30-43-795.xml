@@ -1,0 +1,2 @@
+<Events startTimestamp="1471867243795" logVersion="0.11.0.201608161147" osName="Windows Server 2012 R2" osVersion="6.3" lineSeparator="\r\n" numMonitors="1" monitorBounds="[0, 0, 1280, 800]">
+  <Command __id="0" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="6" />

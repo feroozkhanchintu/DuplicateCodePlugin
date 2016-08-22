@@ -1,0 +1,206 @@
+<Events startTimestamp="1471858220070" logVersion="0.11.0.201608161147" osName="Windows Server 2012 R2" osVersion="6.3" lineSeparator="\r\n" numMonitors="1" monitorBounds="[0, 0, 1280, 800]">
+  <Command __id="0" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="8" />
+  <Command __id="1" _type="FileOpenCommand" docASTNodeCount="939" docActiveCodeLength="5239" docExpressionCount="694" docLength="5362" projectName="plugin-ExtractMethod" timestamp="41">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+    <snapshot><![CDATA[package eclipse.commandline;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Modifier;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.equinox.app.IApplication;
+import org.eclipse.equinox.app.IApplicationContext;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.SourceRange;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.internal.corext.refactoring.ParameterInfo;
+import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
+import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
+import org.eclipse.jdt.internal.corext.refactoring.util.TextEditUtil;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
+import org.eclipse.ltk.core.refactoring.Change;
+
+
+
+
+@SuppressWarnings("restriction")
+public class Application implements IApplication {
+	
+	public static final String CONTAINER= "src";
+	private static IPackageFragmentRoot fgRoot;
+	private static IPackageFragment fgPackageP;
+	private static IJavaProject fgJavaTestProject;
+	private static IPackageFragmentRoot fgJRELibrary;
+	private IPackageFragment fSelectionPackage;
+
+
+	static String readFile(String path, Charset encoding) 
+			  throws IOException 
+			{
+			  byte[] encoded = Files.readAllBytes(Paths.get(path));
+			  return new String(encoded, encoding);
+			}
+	public ISourceRange getSelection(ICompilationUnit cu, int startLine, int startColumn, int endLine, int endColumn) throws Exception{
+		IDocument document= new Document(cu.getSource());
+		int offset= getOffset(document, startLine, startColumn);
+		int end= getOffset(document, endLine, endColumn);
+		return new SourceRange(offset, end - offset);
+	}
+	
+	private static int getOffset(IDocument document, int line, int column) throws BadLocationException {
+		int r= document.getLineInformation(line - 1).getOffset();
+		IRegion region= document.getLineInformation(line - 1);
+		int lineTabCount= calculateTabCountInLine(document.get(region.getOffset(), region.getLength()), column);
+		r += (column - 1) - (lineTabCount * getTabWidth()) + lineTabCount;
+		return r;
+	}
+	
+	private static final int getTabWidth(){
+		return 4;
+	}
+	
+	public static int calculateTabCountInLine(String lineSource, int lastCharOffset){
+		int acc= 0;
+		int charCount= 0;
+		for(int i= 0; charCount < lastCharOffset - 1; i++){
+			if ('\t' == lineSource.charAt(i)){
+				acc++;
+				charCount += getTabWidth();
+			}	else
+				charCount += 1;
+		}
+		return acc;
+	}
+	
+	public static IPackageFragmentRoot getDefaultSourceFolder() throws Exception {
+		if (fgRoot != null)
+			return fgRoot;
+		throw new FileNotFoundException();
+	}
+	
+	
+	@Override
+	public Object start(IApplicationContext arg0) throws Exception {
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+		System.out.println(workspace);
+		IWorkspaceRoot root = workspace.getRoot();
+		IProject[] projects = root.getProjects();
+		IPackageFragment[] packages = JavaCore.create(projects[0]).getPackageFragments();
+		System.out.println(packages[0]);
+		ICompilationUnit[] units = packages[0].getCompilationUnits();
+		ASTParser astParser = ASTParser.newParser(8);
+		astParser.setSource(units[0]);
+		astParser.setResolveBindings(true);
+		ASTNode result = astParser.createAST((IProgressMonitor) null);
+		CompilationUnit astRoot = (CompilationUnit) result;
+		System.out.println(units[0]);
+		ISourceRange sourceRange = getSelection(units[0], 271, 1, 275, 1);
+	
+		ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(astRoot, sourceRange.getOffset(), sourceRange.getLength());
+
+		refactoring.setMethodName("extracted");
+		refactoring.setVisibility(Modifier.PRIVATE);
+		
+		refactoring.checkInitialConditions(new NullProgressMonitor());
+		//refactoring.setDestination(0);
+		//List parameters= refactoring.getParameterInfos();
+		//System.out.println(parameters.size());
+		refactoring.checkFinalConditions(new NullProgressMonitor());
+		Change change = refactoring.createChange(new NullProgressMonitor());
+		change.perform(new NullProgressMonitor());
+		change.dispose();
+		System.out.println(change.getModifiedElement().toString());
+		workspace.save(true, null);
+		return IApplication.EXIT_OK;		
+	}
+	
+	 
+	
+	@Override
+	public void stop() {
+
+	}
+
+}
+]]></snapshot>
+  </Command>
+  <Command __id="2" _type="MoveCaretCommand" caretOffset="1969" docOffset="3737" timestamp="1603" />
+  <Command __id="3" _type="RunCommand" kind="Create" projectName="null" timestamp="3410" type="Run" />
+  <Command __id="4" _type="RunCommand" kind="Create" projectName="null" timestamp="4134" type="Debug" />
+  <Command __id="5" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="13327" />
+  <Command __id="6" _type="FileOpenCommand" projectName="null" timestamp="14069">
+    <filePath><![CDATA[null]]></filePath>
+  </Command>
+  <Command __id="7" _type="MoveCaretCommand" caretOffset="4838" docOffset="4891" timestamp="14160" />
+  <Command __id="8" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepReturn" timestamp="14685" />
+  <Command __id="9" _type="AssistCommand" assist_type="QUICK_ASSIST" auto_activated="false" start_end="END" timestamp="15903" />
+  <Command __id="10" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="17300" />
+  <Command __id="11" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepReturn" timestamp="18480" />
+  <Command __id="12" _type="FileOpenCommand" docASTNodeCount="939" docActiveCodeLength="5239" docExpressionCount="694" docLength="5362" projectName="plugin-ExtractMethod" timestamp="18579">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+  </Command>
+  <Command __id="13" _type="MoveCaretCommand" caretOffset="3002" docOffset="4770" timestamp="18675" />
+  <Command __id="14" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="19650" />
+  <Command __id="15" _type="FileOpenCommand" projectName="null" timestamp="19944">
+    <filePath><![CDATA[null]]></filePath>
+  </Command>
+  <Command __id="16" _type="MoveCaretCommand" caretOffset="582" docOffset="628" timestamp="20000" />
+  <Command __id="17" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepReturn" timestamp="20937" />
+  <Command __id="18" _type="FileOpenCommand" docASTNodeCount="939" docActiveCodeLength="5239" docExpressionCount="694" docLength="5362" projectName="plugin-ExtractMethod" timestamp="21083">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+  </Command>
+  <Command __id="19" _type="MoveCaretCommand" caretOffset="3002" docOffset="4770" timestamp="21182" />
+  <Command __id="20" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="22041" />
+  <Command __id="21" _type="FileOpenCommand" projectName="null" timestamp="22467">
+    <filePath><![CDATA[null]]></filePath>
+  </Command>
+  <Command __id="22" _type="MoveCaretCommand" caretOffset="13265" docOffset="13335" timestamp="22536" />
+  <Command __id="23" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepOver" repeat="13" timestamp="24123" timestamp2="31228" />
+  <Command __id="36" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="33652" />
+  <Command __id="37" _type="AssistCommand" assist_type="CONTENT_ASSIST" auto_activated="false" start_end="END" timestamp="33839" />
+  <Command __id="38" _type="AssistCommand" assist_type="QUICK_ASSIST" auto_activated="false" start_end="END" timestamp="33839" />
+  <Command __id="39" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepOver" repeat="5" timestamp="36537" timestamp2="40645" />
+  <Command __id="44" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepOver" repeat="8" timestamp="48406" timestamp2="52680" />
+  <Command __id="52" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="53796" />
+  <Command __id="53" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepOver" repeat="11" timestamp="61040" timestamp2="68509" />
+  <Command __id="64" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="70211" />
+  <Command __id="65" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="73605" />
+  <Command __id="66" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="77817" />
+  <Command __id="67" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="97451" />
+  <Command __id="68" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="100004" />
+  <Command __id="69" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" repeat="4" timestamp="105891" timestamp2="108523" />
+  <Command __id="73" _type="EclipseCommand" commandID="org.eclipse.debug.ui.commands.StepInto" timestamp="112702" />
+  <Command __id="74" _type="FileOpenCommand" projectName="null" timestamp="206093">
+    <filePath><![CDATA[null]]></filePath>
+  </Command>
+  <Command __id="75" _type="MoveCaretCommand" caretOffset="27654" docOffset="27724" timestamp="206191" />
+  <Command __id="76" _type="SelectTextCommand" caretOffset="28192" docEnd="28262" docOffset="28262" docStart="27800" end="28192" start="27730" timestamp="210671" />
+  <Command __id="77" _type="MoveCaretCommand" caretOffset="27553" docOffset="27623" timestamp="266867" />
+  <Command __id="78" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="336489" />
+</Events>

@@ -1,0 +1,191 @@
+<Events startTimestamp="1471857587838" logVersion="0.11.0.201608161147" osName="Windows Server 2012 R2" osVersion="6.3" lineSeparator="\r\n" numMonitors="1" monitorBounds="[0, 0, 1280, 800]">
+  <Command __id="0" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="8" />
+  <Command __id="1" _type="FileOpenCommand" docASTNodeCount="32" docActiveCodeLength="148" docExpressionCount="13" docLength="148" projectName="Test" timestamp="40">
+    <filePath><![CDATA[C:\Prabh\workspace\Test\src\case3_1.java]]></filePath>
+    <snapshot><![CDATA[public class case3_1{
+	protected int a;
+	public case3_1(){
+		int a = 1;
+		System.out.println(1);
+	}
+	
+	public int getC(){
+		return 1;
+	}
+}]]></snapshot>
+  </Command>
+  <Command __id="2" _type="MoveCaretCommand" caretOffset="107" docOffset="107" timestamp="853" />
+  <Command __id="3" _type="FileOpenCommand" docASTNodeCount="939" docActiveCodeLength="5236" docExpressionCount="694" docLength="5359" projectName="plugin-ExtractMethod" timestamp="3505">
+    <filePath><![CDATA[C:\Prabh\plugin-ExtractMethod\plugin-ExtractMethod\src\eclipse\commandline\Application.java]]></filePath>
+    <snapshot><![CDATA[package eclipse.commandline;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Modifier;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.equinox.app.IApplication;
+import org.eclipse.equinox.app.IApplicationContext;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.SourceRange;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.internal.corext.refactoring.ParameterInfo;
+import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
+import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
+import org.eclipse.jdt.internal.corext.refactoring.util.TextEditUtil;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
+import org.eclipse.ltk.core.refactoring.Change;
+
+
+
+
+@SuppressWarnings("restriction")
+public class Application implements IApplication {
+	
+	public static final String CONTAINER= "src";
+	private static IPackageFragmentRoot fgRoot;
+	private static IPackageFragment fgPackageP;
+	private static IJavaProject fgJavaTestProject;
+	private static IPackageFragmentRoot fgJRELibrary;
+	private IPackageFragment fSelectionPackage;
+
+
+	static String readFile(String path, Charset encoding) 
+			  throws IOException 
+			{
+			  byte[] encoded = Files.readAllBytes(Paths.get(path));
+			  return new String(encoded, encoding);
+			}
+	public ISourceRange getSelection(ICompilationUnit cu, int startLine, int startColumn, int endLine, int endColumn) throws Exception{
+		IDocument document= new Document(cu.getSource());
+		int offset= getOffset(document, startLine, startColumn);
+		int end= getOffset(document, endLine, endColumn);
+		return new SourceRange(offset, end - offset);
+	}
+	
+	private static int getOffset(IDocument document, int line, int column) throws BadLocationException {
+		int r= document.getLineInformation(line - 1).getOffset();
+		IRegion region= document.getLineInformation(line - 1);
+		int lineTabCount= calculateTabCountInLine(document.get(region.getOffset(), region.getLength()), column);
+		r += (column - 1) - (lineTabCount * getTabWidth()) + lineTabCount;
+		return r;
+	}
+	
+	private static final int getTabWidth(){
+		return 4;
+	}
+	
+	public static int calculateTabCountInLine(String lineSource, int lastCharOffset){
+		int acc= 0;
+		int charCount= 0;
+		for(int i= 0; charCount < lastCharOffset - 1; i++){
+			if ('\t' == lineSource.charAt(i)){
+				acc++;
+				charCount += getTabWidth();
+			}	else
+				charCount += 1;
+		}
+		return acc;
+	}
+	
+	public static IPackageFragmentRoot getDefaultSourceFolder() throws Exception {
+		if (fgRoot != null)
+			return fgRoot;
+		throw new FileNotFoundException();
+	}
+	
+	
+	@Override
+	public Object start(IApplicationContext arg0) throws Exception {
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+		System.out.println(workspace);
+		IWorkspaceRoot root = workspace.getRoot();
+		IProject[] projects = root.getProjects();
+		IPackageFragment[] packages = JavaCore.create(projects[0]).getPackageFragments();
+		System.out.println(packages[0]);
+		ICompilationUnit[] units = packages[0].getCompilationUnits();
+		ASTParser astParser = ASTParser.newParser(8);
+		astParser.setSource(units[0]);
+		astParser.setResolveBindings(true);
+		ASTNode result = astParser.createAST((IProgressMonitor) null);
+		CompilationUnit astRoot = (CompilationUnit) result;
+		System.out.println(units[0]);
+		ISourceRange sourceRange = getSelection(units[0], 5, 9, 5, 37);
+	
+		ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(astRoot, sourceRange.getOffset(), sourceRange.getLength());
+
+		refactoring.setMethodName("extracted");
+		refactoring.setVisibility(Modifier.PRIVATE);
+		
+		refactoring.checkInitialConditions(new NullProgressMonitor());
+		//refactoring.setDestination(0);
+		//List parameters= refactoring.getParameterInfos();
+		//System.out.println(parameters.size());
+		refactoring.checkFinalConditions(new NullProgressMonitor());
+		Change change = refactoring.createChange(new NullProgressMonitor());
+		change.perform(new NullProgressMonitor());
+		change.dispose();
+		System.out.println(change.getModifiedElement().toString());
+		workspace.save(true, null);
+		return IApplication.EXIT_OK;		
+	}
+	
+	 
+	
+	@Override
+	public void stop() {
+
+	}
+
+}
+]]></snapshot>
+  </Command>
+  <Command __id="4" _type="MoveCaretCommand" caretOffset="2764" docOffset="4532" timestamp="3649" />
+  <Command __id="6" _type="EclipseCommand" commandID="eventLogger.styledTextCommand.DELETE_PREVIOUS" timestamp="6650" />
+  <Command __id="5" _type="EclipseCommand" commandID="keyDownEvent" timestamp="6651">
+    <KeyCode><![CDATA[8]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=9826125 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="8" _type="InsertStringCommand" timestamp="7031">
+    <data><![CDATA[1]]></data>
+  </Command>
+  <Command __id="7" _type="EclipseCommand" commandID="keyDownEvent" repeat="2" timestamp="7031" timestamp2="8160">
+    <KeyCode><![CDATA[49]]></KeyCode>
+    <stateMask><![CDATA[0]]></stateMask>
+    <simpleDesc><![CDATA[Event {type=1 StyledText {} time=9826531 data=null x=0 y=0 width=0 height=0 detail=0}]]></simpleDesc>
+  </Command>
+  <Command __id="10" _type="RunCommand" kind="Create" projectName="null" timestamp="14318" type="Run" />
+  <Command __id="11" _type="RunCommand" exitValue="0" kind="Terminate" projectName="null" timestamp="20100" type="Run" />
+  <Command __id="12" _type="FileOpenCommand" docASTNodeCount="32" docActiveCodeLength="148" docExpressionCount="13" docLength="148" projectName="Test" timestamp="26566">
+    <filePath><![CDATA[C:\Prabh\workspace\Test\src\case3_1.java]]></filePath>
+  </Command>
+  <Command __id="13" _type="MoveCaretCommand" caretOffset="0" docOffset="0" timestamp="26598" />
+  <Command __id="14" _type="MoveCaretCommand" caretOffset="148" docOffset="148" timestamp="74823" />
+  <Command __id="15" _type="ShellBoundsCommand" bounds="[-8, -8, 1296, 776]" timestamp="94436" />
+</Events>
