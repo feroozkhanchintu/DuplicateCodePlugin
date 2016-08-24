@@ -1,1 +1,1 @@
-# DuplicateCodePlugin
+# DuplicateCodePlugin Check
